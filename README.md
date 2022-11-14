@@ -232,3 +232,262 @@ public class WishListEntity extends MemoryDbEntity {
 
 }
 해당 클래스파일에 데이터베이스에 필요한 정보들을 작성해줍니다. 제목과 카테고리, 주소, 홈페이지 주소와 이미지 주소, 방문여부와 방문횟수, 그리고 마지막 방문일까지 저장할 수 있는 공간을 할당해줍니다.
+
+
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
+public class WishListEntity extends MemoryDbEntity {
+
+    private String title;           // 음식명, 장소명
+    private String category;        // 카테고리
+    private String address;         // 주소
+    private String readAddress;     // 도로명
+    private String homePageLink;    // 홈페이지 주소
+    private String imageLink;       // 음식,가게 이미지 주소
+    private boolean isVisit;        // 방문 여부
+    private int visitCount;         // 방문 횟수
+    private LocalDateTime lastVisitDate; // 방문 마지막 일자
+
+}
+ 
+
+ 
+https://nelapham.tistory.com/52
+저번 글에서 작성해 놓았던 entity 데이터베이스가 잘 작동하는지 확인해주기 위해서 새로운 repository를 생성해줍니다.
+
+ 
+
+
+public class WishListRepository {
+
+}
+repository 패키지를 생성하여 폴더를 나누어 준 후에, WishListRepository 클래스를 생성해줬습니다. 그 후에 extends를 사용하여 MemoryDbRepositoryAbstarct를 상속해줬습니다.  그 후 제네릭을 이용하여 wishlistentity를 타입으로 지정해주었습니다. 데이터베이스를 저장하는 곳이다라는 의미로 repository 어노테이션을 사용해주도록 합니다.
+
+ 
+
+@Repository
+public class WishListRepository extends MemoryDbRepositoryAbstract<WishListEntity> {
+
+}
+이 abstract 추상 클래스의  <T>를 지정해주었던 부분들이 모두 WishListEntity로 반영되어 작동되게 됩니다.
+
+ 
+
+abstract public class MemoryDbRepositoryAbstract<T extends MemoryDbEntity> implements MemoryDbRepositoryIfs<T> {
+
+    private final List<T> db = new ArrayList<>();
+    private int index = 0;
+
+    @Override		// <WishListEntity>
+    public Optional<T> findById(int index) {
+        return db.stream().filter(it -> it.getIndex() == index).findFirst();
+    }
+
+    @Override	// <WishListEntity>
+    public T save(T entity) {
+
+        var optionalEntity = db.stream().filter(it -> it.getIndex() == entity.getIndex()).findFirst();
+
+        if(optionalEntity.isEmpty()) {
+            // db에 데이터가 없던 경우
+            index++;
+            entity.setIndex(index);
+            db.add(entity);
+
+            return entity;
+
+        } else {
+            // db에 데이터가 있던 경우
+            var preIndex = optionalEntity.get().getIndex();
+            entity.setIndex(preIndex);
+
+            deleteById(preIndex);
+            db.add(entity);
+
+            return entity;
+
+        }
+
+    }
+
+    @Override
+    public void deleteById(int index) {
+
+        var optionalEntity = db.stream().filter(it -> it.getIndex() == index).findFirst();
+        if(optionalEntity.isPresent()){
+            db.remove(optionalEntity.get());
+        }
+
+    }
+
+    @Override	//<WishListEntity>
+    public List<T> listAll() {
+        return db;
+    }
+}
+ 
+
+제대로 작동하는지 Test를 만들어서 작동시켜봅시다. test에서는 이클립스에서 사용했던 어노테이션들을 그대로 가져와서 사용해주면 됩니다. spirngboottest와 각 클래스에 test를 부여했고, autowired 또한 평소와 같이 사용하여 자동으로 할당시켰습니다.
+
+ 
+
+@SpringBootTest
+public class WishListRepositoryTest {
+
+    @Autowired
+    private WishListRepository wishListRepository;
+    
+    @Test
+    public void saveTest() {
+
+    }
+    
+    @Test
+    public void findByIdTest() {
+
+    }
+
+    @Test
+    public void deleteTest() {
+
+    }
+
+    @Test
+    public void listAllTest() {
+
+    }
+}
+ 
+
+테스트 해야 할 네가지 부분을 모두 작성해 주었습니다. 각 엔티티에 알맞은 값을 세팅해주고 하나씩 작동해보도록 하겠습니다.
+
+ 
+
+@Test
+public void saveTest() {
+
+    var wishList = new WishListEntity();
+    wishList.setTitle("title");
+    wishList.setCategory("category");
+    wishList.setAddress("address");
+    wishList.setReadAddress("readAddress");
+    wishList.setHomePageLink("");
+    wishList.setImageLink("");
+    wishList.setVisit(false);
+    wishList.setVisitCount(0);
+    wishList.setLastVisitDate(null);
+
+}
+WishListEntity.set 정보들을 모두 셋팅해주었습니다. 이대로 실행해봐도 좋지만, 다른 메소드에서도 자주 사용될 것 같은 내용이기 때문에 메소드로 따로 설정해준 후에 사용할 때마다 불러들이겠습니다.
+
+ 
+
+private WishListEntity create() {
+    var wishList = new WishListEntity();
+    wishList.setTitle("title");
+    wishList.setCategory("category");
+    wishList.setAddress("address");
+    wishList.setReadAddress("readAddress");
+    wishList.setHomePageLink("");
+    wishList.setImageLink("");
+    wishList.setVisit(false);
+    wishList.setVisitCount(0);
+    wishList.setLastVisitDate(null);
+
+    return wishList;
+}
+@Test
+public void saveTest() {
+    var wishListEntity = create();
+ 
+
+wishListEntity 메소드를 호출해서 생성해준 후에 wishListRepository에 세팅해 준 후에 Assertions를 사용하여 조건을 부착해줍니다. 기대값을 설정해주는 역할을 합니다. notnull과  equals를 사용했습니다.
+
+ 
+
+@Test
+public void saveTest() {
+    var wishListEntity = create();
+    var expected = wishListRepository.save(wishListEntity);
+
+    Assertions.assertNotNull(expected);
+    Assertions.assertEquals(1, expected.getIndex());
+
+}
+ 
+
+해당 테스트항목을 실행해 보고 오류가 발생한다면 수정하고 해결합니다.
+
+ 
+
+
+정상으로 작동되는 것을 확인했다면 나머지 세가지의 메소드도 모두 작성 후 테스트를 반복합니다. 테스트를 하지 않고 실적용으로 바로 넘어간다면 오류를 빠르게 찾아내기 힘들기 때문에 작업능률이 떨어질 수 있습니다. 꼭꼭 테스트를하고 결과를 예상하고 확인하여 다음 작업으로 넘어가야합니다. 
+
+ 
+
+@Test
+public void findByIdTest() {
+    var wishListEntity = create();
+    wishListRepository.save(wishListEntity);
+
+    var expected = wishListRepository.findById(1);
+
+}
+위에 똑같이 설정해 준후에 expected를 불러들이겠습니다. 그 후에 다시 Assertions를 사용할건데, Optional같은 경우 항상 값이 있기 때문에 Notnull이라는 조건은 그다지 쓸모가 없습니다. .isPresent() 를 사용하여 값이 있을 경우로 작업하겠습니다.
+
+ 
+
+Assertions.assertEquals(true, expected.isPresent()); // 값이 있어야 한다.
+Assertions.assertEquals(1, expected.get().getIndex());
+1이라는 값을 기대값으로 설정하고, expected 값을 꺼냈을때의 index값이 1이어야 한다. 해당 메소드도 제대로 작동하는지 확인하고 넘어가도록 하겠습니다.
+
+ 
+
+
+DeleteTest, listAllTest또한 같은 방식으로 진행하였습니다.
+
+ 
+
+@Test
+public void deleteTest() {
+    var wishListEntity = create();
+    wishListRepository.save(wishListEntity);
+
+    wishListRepository.deleteById(1);
+
+    int count = wishListRepository.listAll().size();
+    Assertions.assertEquals(0, count);
+
+}
+
+@Test
+public void listAllTest() {
+    var wishListEntity1 = create();
+    wishListRepository.save(wishListEntity1);
+
+    var wishListEntity2 = create();
+    wishListRepository.save(wishListEntity2);
+
+    int count = wishListRepository.listAll().size();
+    Assertions.assertEquals(2, count);
+
+
+}
+네 가지 모든 테스트 방식을 진행하였지만, 한가지 빼먹었던 부분이 데이터 db에 이미 정보가 있을 경우는 아직 테스트하지 못했습니다. 데이터를 업데이트하여 받아와야 하기 때문에 카운터가 늘어나면 안됩니다. 이 부분을 테스트하기 위해 saveTest 메소드를 복사하여 updateTest로 수정해서 작동시켜보도록 하겠습니다.
+
+ 
+
+@Test
+public void updateTest() {
+    var wishListEntity = create();
+    var expected = wishListRepository.save(wishListEntity);
+
+    expected.setTitle("update Test");
+    var saveEntity = wishListRepository.save(expected);
+
+    Assertions.assertEquals("update Test", saveEntity.getTitle());
+    Assertions.assertEquals(1, wishListRepository.listAll().size());
+    
+}
+제목을 업데이트 됐단것으로 알 수 있게 바꾸었고, 해당 기대값들이 "update Test" 여야 하고, listAll로 호출하였을때 사이즈값이 그대로 1이어야 합니다 ( index++ )이 되면 업데이트가 아니라 기존 생성과 다를바 없기때문에 반드시 확인해야합니다.
